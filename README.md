@@ -1,81 +1,133 @@
-# Calculadora Generica con Delegados - Tarea Practica 2
+# Tarea Practica 2 — Calculadora con Genericos, Delegados y Excepciones
 
-**Instituto Tecnologico de las Americas (ITLA)**
-
----
-
-## Descripcion general
-
-Aplicacion de consola desarrollada en **C#** que permite al usuario construir una lista de numeros y realizar operaciones matematicas sobre todos sus elementos. Demuestra el uso de **Genericos**, **Delegados** y **Control de Excepciones** junto a ENUMS (incluyendo los operadores `?` y `??` para valores nullable).
 
 ---
 
-## Como ejecutar el programa
+## ¿De que trata esto?
 
-### Requisitos
-- .NET SDK 6.0 o superior
+Basicamente hice una calculadora en consola con C# donde el usuario puede ir agregando numeros a una lista y luego elegir que operacion quiere hacer con todos esos numeros (sumar, restar, multiplicar o dividir). La idea principal de la tarea era practicar tres conceptos: genericos, delegados y manejo de excepciones.
 
-### Pasos
+Al principio me costo un poco entender como conectar todo, pero una vez que le agarre el hilo a los delegados fue mas facil.
+
+---
+
+## Como correr el programa
+
+Necesitas tener instalado .NET SDK (version 6 o superior). Luego:
+
 ```bash
-# 1. Clonar el repositorio
 git clone https://github.com/TU_USUARIO/TareaPractica2.git
 cd TareaPractica2
-
-# 2. Ejecutar
 dotnet run
 ```
 
+Y ya con eso te aparece el menu en consola.
+
 ---
 
-## Estructura del codigo
+## Menu del programa
 
-### Delegado `OperacionMatematica<T>`
+```
+1. Agregar numero a la lista
+2. Ver lista actual
+3. Sumar
+4. Restar
+5. Multiplicar
+6. Dividir
+7. Limpiar lista
+8. Salir
+```
+
+---
+
+## Como use los Genericos
+
+Para esto cree una clase llamada `ListaNumeros<T>`. El `<T>` es el tipo generico, lo que significa que la misma clase puede trabajar con `int`, `double`, `float`, etc., sin tener que reescribir el codigo para cada tipo. En mi caso la use con `double` para tener mas precision en los calculos.
+
+```csharp
+class ListaNumeros<T> where T : struct
+{
+    private List<T> _numeros = new List<T>();
+    // ...
+}
+```
+
+El `where T : struct` lo puse para asegurarme de que solo se usen tipos de valor numericos y no cosas como strings o clases.
+
+---
+
+## Como use los Delegados
+
+Cree un delegado llamado `OperacionMatematica<T>` que basicamente es una "plantilla" para cualquier metodo que reciba dos numeros y devuelva uno. Asi los metodos de Sumar, Restar, Multiplicar y Dividir se pueden pasar como argumento sin problema.
+
 ```csharp
 delegate T OperacionMatematica<T>(T a, T b) where T : struct;
 ```
-Representa cualquier operacion que reciba dos valores del mismo tipo y devuelva uno del mismo tipo. Permite pasar **Sumar, Restar, Multiplicar o Dividir** como argumento sin cambiar la firma del metodo que los ejecuta.
 
-### Clase generica `ListaNumeros<T>`
-- `where T : struct` garantiza que el tipo sea un valor numerico (nunca nulo).
-- `AgregarNumero(T numero)` - añade un elemento a la lista interna `List<T>`.
-- `MostrarLista()` - imprime los elementos actuales.
-- `LimpiarLista()` - vacia la lista.
-- `EjecutarOperacion(OperacionMatematica<T> operacion, string nombreOp)` - aplica el delegado de forma secuencial sobre todos los elementos.
+Luego en el switch, en lugar de escribir la logica de cada operacion ahi mismo, simplemente paso el metodo correspondiente:
 
-### Clase estatica `Operaciones`
-Contiene los cuatro metodos matematicos con la firma que coincide con el delegado:
-- `Sumar(double a, double b)`
-- `Restar(double a, double b)`
-- `Multiplicar(double a, double b)`
-- `Dividir(double a, double b)` lanza `DivideByZeroException` si `b == 0`
+```csharp
+lista.EjecutarOperacion(Operaciones.Sumar, "Suma");
+lista.EjecutarOperacion(Operaciones.Dividir, "Division");
+```
 
 ---
 
-## Excepciones manejadas
+## Como use los Enums
 
-| Excepcion | Cuando se lanza |
-|---|---|
-| `FormatException` | El usuario ingresa texto en lugar de un numero |
-| `InvalidOperationException` | Se intenta operar con menos de 2 elementos en la lista |
-| `DivideByZeroException` | Un elemento de la lista es `0` durante la division |
+Para el menu use un `enum` llamado `OpcionMenu` para que el `switch` use nombres descriptivos en lugar de numeros sueltos como `"1"`, `"2"`, etc. Esto hace el codigo mas facil de leer.
 
-### Operadores nullable (`?` y `??`)
 ```csharp
-string? input = Console.ReadLine();        // ? → puede ser null
-string opcion = input ?? string.Empty;     // ?? → si es null, usa cadena vacia
+enum OpcionMenu
+{
+    AgregarNumero = 1,
+    VerLista      = 2,
+    Sumar         = 3,
+    Restar        = 4,
+    Multiplicar   = 5,
+    Dividir       = 6,
+    LimpiarLista  = 7,
+    Salir         = 8
+}
 ```
-Esto le indica al compilador que somos conscientes de que `ReadLine()` puede devolver `null` y lo tratamos explicitamente.
 
 ---
 
-## Uso del delegado en el menu (switch)
+## Manejo de Excepciones
+
+Esta parte me parecio importante porque el programa tiene que ser capaz de no romperse si el usuario mete algo mal. Cubri tres casos:
+
+**1. El usuario escribe texto en vez de un numero**
+```csharp
+catch (FormatException)
+{
+    Console.WriteLine("El valor ingresado no es un numero valido.");
+}
+```
+
+**2. Se intenta operar con menos de 2 numeros en la lista**
+```csharp
+if (_numeros.Count < 2)
+    throw new InvalidOperationException("Se necesitan al menos 2 numeros...");
+```
+
+**3. Division por cero**
+```csharp
+if (b == 0)
+    throw new DivideByZeroException("No se puede dividir por cero.");
+```
+
+Tambien use `?` y `??` para manejar el hecho de que `Console.ReadLine()` puede devolver `null` en C# moderno:
 
 ```csharp
-case "3":   // Suma
-    lista.EjecutarOperacion(Operaciones.Sumar, "Suma");
-    break;
-case "6":   // Division - captura excepcion adicional
-    lista.EjecutarOperacion(Operaciones.Dividir, "Division");
-    break;
+string? input     = Console.ReadLine();   // puede ser null
+string entradaRaw = input ?? string.Empty; // si es null, uso cadena vacia
 ```
-El método `Sumar`, `Restar`, etc. se pasa directamente como argumento al parametro de tipo delegado.
+
+Esto basicamente le dice al compilador "se que esto puede ser null y lo estoy manejando".
+
+---
+
+## Conclusion
+
+Fue una tarea bastante completa. Me ayudo a entender mejor para que sirven los genericos en la practica (no solo en teoria), y los delegados me parecieron muy utiles para no repetir codigo. El manejo de excepciones tambien se siente mas natural ahora que lo aplique en un proyecto real.
